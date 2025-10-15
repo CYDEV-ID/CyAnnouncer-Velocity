@@ -53,12 +53,9 @@ public class VelocityAnnouncer {
 
     @com.velocitypowered.api.event.Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        // --- INISIALISASI BSTATS ---
-        // Ganti 12345 dengan Plugin ID unik Anda dari bstats.org
-        int pluginId = 12345;
+        int pluginId = 27593;
         metricsFactory.make(this, pluginId);
 
-        // --- Sisa Logika Plugin ---
         loadConfig();
 
         server.getCommandManager().register("vbroadcast", new BroadcastCommand(this));
