@@ -3,6 +3,7 @@ package id.cydev.cyannouncer.velocity;
 import com.velocitypowered.api.command.SimpleCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 
 public class AnnouncerReloadCommand implements SimpleCommand {
 
@@ -14,11 +15,29 @@ public class AnnouncerReloadCommand implements SimpleCommand {
 
     @Override
     public void execute(final Invocation invocation) {
-        plugin.loadConfig();
-        plugin.startAnnouncements();
+        String[] args = invocation.arguments();
 
-        invocation.source().sendMessage(Component.text("CyAnnouncer-Velocity configuration has been reloaded.", NamedTextColor.GREEN));
-        plugin.getLogger().info("Configuration has been reloaded by " + invocation.source().toString() + ".");
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            plugin.loadConfig();
+            plugin.startAnnouncements();
+
+            invocation.source().sendMessage(
+                    Component.text("CyAnnouncer-Velocity configuration has been reloaded.", NamedTextColor.GREEN)
+            );
+        } else {
+            sendUsage(invocation);
+        }
+    }
+
+    private void sendUsage(final Invocation invocation) {
+        invocation.source().sendMessage(
+                Component.text("CyAnnouncer-Velocity", NamedTextColor.GOLD, TextDecoration.BOLD)
+                        .append(Component.text(" - Available Commands:", NamedTextColor.GRAY))
+        );
+        invocation.source().sendMessage(
+                Component.text(" ● /announcer reload", NamedTextColor.YELLOW)
+                        .append(Component.text(" - Reloads the configuration file.", NamedTextColor.WHITE))
+        );
     }
 
     @Override
