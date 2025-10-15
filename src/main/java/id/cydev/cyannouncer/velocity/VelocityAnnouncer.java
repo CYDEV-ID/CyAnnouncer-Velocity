@@ -9,6 +9,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bstats.velocity.Metrics; // <-- Import untuk bStats
 import org.slf4j.Logger;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
@@ -23,19 +24,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-@Plugin(id = "cyannouncer-velocity", name = "CyAnnouncer-Velocity", version = "1.6.0",
-        description = "An advanced announcement plugin for Velocity.", authors = {"cydev-id"})
+@Plugin(id = "cyannouncer-velocity", name = "CyAnnouncer-Velocity", version = "1.7.0",
+        description = "An advanced, server-specific announcer plugin for Velocity.", authors = {"cydev-id"})
 public class VelocityAnnouncer {
 
     private final ProxyServer server;
     private final Logger logger;
     private final Path dataDirectory;
-    private ScheduledTask announcementTask;
+    private final Metrics.Factory metricsFactory; // <-- Variabel untuk bStats
 
+    private ScheduledTask announcementTask;
     private List<Announcement> allMessages;
     private Map<String, List<Announcement>> serverSpecificMessages;
 
-    // State Tracking: Stores the current message index for each server
     private final Map<String, AtomicInteger> specificCounters = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> allCounters = new ConcurrentHashMap<>();
 
@@ -43,14 +44,21 @@ public class VelocityAnnouncer {
     private int interval;
 
     @Inject
-    public VelocityAnnouncer(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
+    public VelocityAnnouncer(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory, Metrics.Factory metricsFactory) {
         this.server = server;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+        this.metricsFactory = metricsFactory; // <-- Inisialisasi variabel bStats
     }
 
     @com.velocitypowered.api.event.Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
+        // --- INISIALISASI BSTATS ---
+        // Ganti 12345 dengan Plugin ID unik Anda dari bstats.org
+        int pluginId = 12345;
+        metricsFactory.make(this, pluginId);
+
+        // --- Sisa Logika Plugin ---
         loadConfig();
 
         server.getCommandManager().register("vbroadcast", new BroadcastCommand(this));
@@ -68,7 +76,10 @@ public class VelocityAnnouncer {
                 try (InputStream defaultConfig = getClass().getClassLoader().getResourceAsStream("config.yml")) {
                     if (defaultConfig != null) { Files.copy(defaultConfig, configFile.toPath()); }
                 }
-            } catch (Exception e) { logger.error("Failed to create the default configuration file!", e); return; }
+            } catch (Exception e) {
+                logger.error("Failed to create the default configuration file!", e);
+                return;
+            }
         }
 
         YamlConfigurationLoader loader = YamlConfigurationLoader.builder().file(configFile).build();
@@ -85,22 +96,26 @@ public class VelocityAnnouncer {
                 List<String> servers = node.node("servers").getList(String.class, Collections.emptyList());
                 List<String> lines = node.node("lines").getList(String.class, Collections.emptyList());
 
-                if (servers.isEmpty() || lines.isEmpty()) continue;
-
-                Announcement announcement = new Announcement(servers, lines);
-                if (servers.contains("all")) {
-                    allMessages.add(announcement);
-                } else {
-                    for (String serverName : servers) {
-                        serverSpecificMessages.computeIfAbsent(serverName, k -> new ArrayList<>()).add(announcement);
+                if (!servers.isEmpty() && !lines.isEmpty()) {
+                    Announcement announcement = new Announcement(servers, lines);
+                    if (servers.contains("all")) {
+                        allMessages.add(announcement);
+                    } else {
+                        for (String serverName : servers) {
+                            serverSpecificMessages.computeIfAbsent(serverName, k -> new ArrayList<>()).add(announcement);
+                        }
                     }
+                } else {
+                    logger.warn("Skipping an announcement entry because 'servers' or 'lines' is empty.");
                 }
             }
 
             logger.info("Configuration loaded. Found " + allMessages.size() + " global announcements and messages for " + serverSpecificMessages.size() + " specific servers.");
             specificCounters.clear();
             allCounters.clear();
-        } catch (Exception e) { logger.error("Failed to load the configuration!", e); }
+        } catch (Exception e) {
+            logger.error("Failed to load the configuration!", e);
+        }
     }
 
     public void startAnnouncements() {
@@ -151,6 +166,7 @@ public class VelocityAnnouncer {
         logger.info("Advanced announcements scheduler started, running every " + this.interval + " seconds.");
     }
 
+    // Getter methods
     public ProxyServer getServer() { return server; }
     public String getPrefix() { return prefix; }
     public Logger getLogger() { return logger; }
