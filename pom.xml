@@ -21,7 +21,7 @@
         </repository>
         <repository>
             <id>bstats-repo</id>
-            <url>https://repo.bstats.org/mvn/</url>
+            <url>https://bstats.org/mvn/</url>
         </repository>
     </repositories>
 

@@ -2,12 +2,14 @@ package id.cydev.cyannouncer.velocity;
 
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class BroadcastCommand implements SimpleCommand {
 
@@ -32,8 +34,21 @@ public class BroadcastCommand implements SimpleCommand {
 
         if (targets.equalsIgnoreCase("all")) {
             plugin.getServer().sendMessage(componentMessage);
+            invocation.source().sendMessage(Component.text("Broadcast sent to all servers.", NamedTextColor.GREEN));
         } else {
             List<String> targetServers = Arrays.asList(targets.split(","));
+            List<String> allServerNames = plugin.getServer().getAllServers().stream()
+                    .map(rs -> rs.getServerInfo().getName())
+                    .collect(Collectors.toList());
+
+            for (String targetServer : targetServers) {
+                if (!allServerNames.contains(targetServer)) {
+                    invocation.source().sendMessage(Component.text("Error: Server '" + targetServer + "' not found.", NamedTextColor.RED));
+                    invocation.source().sendMessage(Component.text("Available servers: " + String.join(", ", allServerNames), NamedTextColor.GRAY));
+                    return;
+                }
+            }
+
             for (Player player : plugin.getServer().getAllPlayers()) {
                 player.getCurrentServer().ifPresent(serverConnection -> {
                     String serverName = serverConnection.getServerInfo().getName();
@@ -42,6 +57,7 @@ public class BroadcastCommand implements SimpleCommand {
                     }
                 });
             }
+            invocation.source().sendMessage(Component.text("Broadcast sent to servers: " + String.join(", ", targetServers), NamedTextColor.GREEN));
         }
     }
 
